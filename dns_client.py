@@ -639,6 +639,7 @@ class DNSClient:
 
 
 if __name__ == "__main__":
+    import sys
     import argparse
 
     class NameSpace(argparse.Namespace):
@@ -684,4 +685,5 @@ if __name__ == "__main__":
             ):
                 print(record.value)
         except Exception as ex:
-            logger.warning(ex)
+            logger.critical(ex)
+            sys.exit(1)
