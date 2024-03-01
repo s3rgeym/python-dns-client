@@ -21,16 +21,18 @@ import typing
 from enum import IntEnum
 
 __author__ = "Sergey M"
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 
 logger = logging.getLogger(__name__)
 
+__all__ = ("RecordClass", "RecordType", "DNSClient", "DNSError")
+
 
 # https://github.com/Habbie/hello-dns/blob/master/tdns/dns-storage.hh#L73
-class DNSType(IntEnum):
+class RecordType(IntEnum):
     UNKNOWN = -1
-    NONE = 0
+    EMPTY = 0
     A = 1
     NS = 2
     CNAME = 5
@@ -53,24 +55,30 @@ class DNSType(IntEnum):
     CAA = 257
 
     @classmethod
-    def _missing_(cls, value: typing.Any) -> DNSType:
+    def _missing_(cls, value: typing.Any) -> RecordType:
         return cls.UNKNOWN
 
 
 # https://github.com/Habbie/hello-dns/blob/master/tdns/dns-storage.hh#L85
-class DNSClass(IntEnum):
-    NONE = 0
-    # Internet Class
-    IN = 1
-    CH = 3
+# https://github.com/indented-automation/Indented.Net.Dns/blob/main/Indented.Net.Dns/enum/RecordClass.ps1
+class RecordClass(IntEnum):
+    EMPTY = 0
+    IN = 1  # INternet
+    CH = 3  # CHaos
+    HS = 4
+    NONE = 254
+    ANY = 256
 
 
 T = typing.TypeVar("T")
 
 
 # TODO: переименовать?
-class _FromBuffer:
+class BinaryHandler:
     def parse(self, buf: typing.BinaryIO) -> None:
+        raise NotImplementedError
+
+    def to_bytes(self) -> bytes:
         raise NotImplementedError
 
     @classmethod
@@ -201,7 +209,8 @@ class BitsReader:
         self.offset = offset
 
 
-# В этом случае без классов и невозможно, т.к. в питоне нельзя передавать простые типы по ссылке как в PHP
+# В этом случае без классов и невозможно, т.к. в питоне нельзя передавать
+# простые типы по ссылке как в PHP
 @dataclasses.dataclass
 class BitsWriter:
     """set bits for result"""
@@ -223,7 +232,7 @@ class BitsWriter:
 # http://images.slideplayer.com/18/5705521/slides/slide_16.jpg
 # # https://github.com/lun-4/zigdig/blob/master/src/packet.zig
 @dataclasses.dataclass
-class Header(_FromBuffer):
+class Header(BinaryHandler):
     """packet header"""
 
     # id: int = dataclasses.field(
@@ -323,14 +332,15 @@ class Header(_FromBuffer):
 
 
 def encode_name(s: str) -> bytes:
-    """Кодирует имя. Имя хоста разбивается на сегменты по точке, каждому сегменту прешествует его длина = 1 байт, в конце всегда 0x00"""
+    """Кодирует имя. Имя хоста разбивается на сегменты по точке, каждому
+    сегменту прешествует его длина = 1 байт, в конце всегда 0x00"""
     rv = b""
     for p in s.rstrip(".").encode().split(b"."):
         rv += len(p).to_bytes() + p
     return rv + b"\0"
 
 
-def parse_name(buf: typing.BinaryIO) -> str:
+def read_name(buf: typing.BinaryIO) -> str:
     rv = []
     while (length := int.from_bytes(buf.read(1))) > 0:
         # сжатые данные
@@ -339,7 +349,7 @@ def parse_name(buf: typing.BinaryIO) -> str:
             length = ((length & 0x3F) << 8) | int.from_bytes(buf.read(1))
             cur_pos = buf.tell()
             buf.seek(length)
-            rv.append(parse_name(buf))
+            rv.append(read_name(buf))
             buf.seek(cur_pos)
             break
         rv.append(buf.read(length).decode())
@@ -347,12 +357,12 @@ def parse_name(buf: typing.BinaryIO) -> str:
 
 
 @dataclasses.dataclass
-class Question(_FromBuffer):
+class Question(BinaryHandler):
     """Query Question"""
 
     name: str | None = None
-    qtype: DNSType = DNSType.NONE
-    qclass: DNSClass = DNSClass.NONE
+    qtype: RecordType = RecordType.EMPTY
+    qclass: RecordClass = RecordClass.EMPTY
 
     def to_bytes(self) -> bytes:
         return (
@@ -362,13 +372,13 @@ class Question(_FromBuffer):
         )
 
     def parse(self, buf: typing.BinaryIO) -> None:
-        self.name = parse_name(buf)
-        self.qtype = DNSType(
+        self.name = read_name(buf)
+        self.qtype = RecordType(
             int.from_bytes(
                 buf.read(2),
             ),
         )
-        self.qclass = DNSClass(
+        self.qclass = RecordClass(
             int.from_bytes(
                 buf.read(2),
             ),
@@ -378,12 +388,12 @@ class Question(_FromBuffer):
 # https://implement-dns.wizardzines.com/book/part_2
 # https://github.com/cmol/dnsmessage/blob/main/lib/dnsmessage/resource_record.rb
 @dataclasses.dataclass
-class Answer(_FromBuffer):
+class Answer(BinaryHandler):
     """Response Answer"""
 
     name: str | None = None
-    qtype: int = DNSType.NONE
-    qclass: int = DNSClass.NONE
+    qtype: int = RecordType.EMPTY
+    qclass: int = RecordClass.EMPTY
     ttl: int = 0
     value: typing.Any = None
 
@@ -391,32 +401,32 @@ class Answer(_FromBuffer):
         # https://gist.github.com/bohwaz/ddc61c4f7e031c3221a89981e70b830c#file-dns_get_record_from-php-L140
         data_len = int.from_bytes(buf.read(2))
         match self.qtype:
-            case DNSType.A:
+            case RecordType.A:
                 return socket.inet_ntoa(buf.read(data_len))
-            case DNSType.AAAA:
+            case RecordType.AAAA:
                 return socket.inet_ntop(socket.AF_INET6, buf.read(data_len))
-            case DNSType.MX:
+            case RecordType.MX:
                 pri = int.from_bytes(buf.read(2))  # priority
-                return pri, parse_name(buf)
-            case DNSType.CNAME | DNSType.NS | DNSType.PTR:
-                return parse_name(buf)
-            case DNSType.TXT:
+                return pri, read_name(buf)
+            case RecordType.CNAME | RecordType.NS | RecordType.PTR:
+                return read_name(buf)
+            case RecordType.TXT:
                 # https://en.m.wikipedia.org/wiki/TXT_record
                 # первый байт - это длина текстовой записи
                 return buf.read(data_len)[1:].decode()
-            case DNSType.NONE:
+            case RecordType.EMPTY:
                 raise ValueError()
             case _:
                 return buf.read(data_len)
 
     def parse(self, buf: typing.BinaryIO) -> None:
-        self.name = parse_name(buf)
-        self.qtype = DNSType(
+        self.name = read_name(buf)
+        self.qtype = RecordType(
             int.from_bytes(
                 buf.read(2),
             ),
         )
-        self.qclass = DNSClass(
+        self.qclass = RecordClass(
             int.from_bytes(
                 buf.read(2),
             ),
@@ -425,7 +435,7 @@ class Answer(_FromBuffer):
         self.value = self._parse_value(buf)
 
 
-class BadResponse(Exception):
+class DNSError(Exception):
     def __init__(self, response: Packet) -> None:
         self.response = response
         super().__init__(
@@ -439,7 +449,7 @@ class BadResponse(Exception):
 
 
 @dataclasses.dataclass
-class Packet(_FromBuffer):
+class Packet(BinaryHandler):
     """Query or Response Packet"""
 
     header: Header | None = None
@@ -458,11 +468,11 @@ class Packet(_FromBuffer):
 
     def to_bytes(self) -> bytes:
         to_bytes = operator.methodcaller("to_bytes")
-        return b"".join([
+        return operator.concat(
             self.header.to_bytes(),
             *map(to_bytes, self.questions),
             *map(to_bytes, self.answers),
-        ])
+        )
 
     @property
     def response_code(self) -> ResponseCode:
@@ -482,7 +492,10 @@ class Packet(_FromBuffer):
 
     @classmethod
     def build_query(
-        cls: typing.Type[Packet], qname: str, qtype: DNSType = DNSType.A, /
+        cls: typing.Type[Packet],
+        qname: str,
+        qtype: RecordType = RecordType.A,
+        /,
     ) -> Packet:
         # эти флаги устанавливает dig
         # Flags: 0x0120 Standard query
@@ -497,7 +510,7 @@ class Packet(_FromBuffer):
             header=Header(
                 id=secrets.randbits(16), num_questions=1, flags=0x120
             ),
-            questions=[Question(qname, qtype, qclass=DNSClass.IN)],
+            questions=[Question(qname, qtype, qclass=RecordClass.IN)],
         )
 
 
@@ -505,15 +518,15 @@ def split_hex(b: bytes, n: int = 2) -> list[str]:
     return (h := b.hex()) and [h[i : i + n] for i in range(0, len(h), n)]
 
 
-def timeit(f):
-    @functools.wraps(f)
-    def timed(*args: typing.Any, **kwrags: typing.Any):
+def timeit(fn: typing.Callable) -> typing.Callable:
+    @functools.wraps(fn)
+    def timed(*args: typing.Any, **kwrags: typing.Any) -> typing.Any:
         try:
             dt = -time.monotonic()
-            return f(*args, **kwrags)
+            return fn(*args, **kwrags)
         finally:
             dt += time.monotonic()
-            logger.debug("function %s tooks %.3fs", f.__name__, dt)
+            logger.debug("function %s tooks %.3fs", fn.__name__, dt)
 
     return timed
 
@@ -523,8 +536,6 @@ class DNSClient:
     resolver_host: str = "8.8.8.8"
     resolver_port: int = 53
     sock: socket.socket | None = None
-    # timeoout: float = 2.0
-    # ssl: bool = False
 
     def __post_init__(self) -> None:
         self._lock = threading.RLock()
@@ -596,7 +607,7 @@ class DNSClient:
     def get_response_query(
         self,
         name: str,
-        qtype: DNSType = DNSType.A,
+        qtype: RecordType = RecordType.A,
     ) -> Packet:
         """sends query and returns response"""
         query = Packet.build_query(name, qtype)
@@ -613,11 +624,11 @@ class DNSClient:
     def query(
         self,
         name: str,
-        qtype: DNSType = DNSType.A,
+        qtype: RecordType = RecordType.A,
     ) -> list[Answer]:
-        """sends query and returns list of answers, raises BadResponse if respoinse code != 0x00"""
+        """sends query and returns list of answers, raises DNSError if respoinse code != 0x00"""
         response = self.get_response_query(name, qtype=qtype)
-        BadResponse.raise_for_response(response)
+        DNSError.raise_for_response(response)
         return response.answers[:]
 
     def gethostaddr(self, s: str) -> str | None:
@@ -625,7 +636,7 @@ class DNSClient:
         return records[0].value if records else None
 
     def get_name_servers(self, s: str) -> list[str]:
-        return [x.value for x in self.query(s, DNSType.NS)]
+        return [x.value for x in self.query(s, RecordType.NS)]
 
 
 if __name__ == "__main__":
@@ -655,11 +666,11 @@ if __name__ == "__main__":
     args = parser.parse_args(namespace=NameSpace())
 
     try:
-        qtype = DNSType[args.type.upper()]
+        qtype = RecordType[args.type.upper()]
     except KeyError:
         # parser.error(
         #     "invalid record type; must be one of: "
-        #     + ", ".join(set(DNSType._member_names_) - {"NONE"})
+        #     + ", ".join(set(RecordType._member_names_) - {"EMPTY"})
         # )
         parser.error("invalid dns record type")
 
