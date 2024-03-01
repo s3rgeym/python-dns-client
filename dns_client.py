@@ -299,7 +299,6 @@ class Header(BinaryHandler):
     @flags.setter
     def flags(self, v: int) -> None:
         logger.debug(f"set header flags: {v:016b}")
-        self._flags = v
         reader = BitsReader(v, 16)
         self.is_response = reader.read_bool()
         self.opcode = OpCode(reader.read(4))
