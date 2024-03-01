@@ -563,32 +563,45 @@ def timeit(fn: typing.Callable) -> typing.Callable:
 
 @dataclasses.dataclass
 class DNSClient:
-    resolver_host: str = "8.8.8.8"
-    resolver_port: int = 53
+    host: str = "8.8.8.8"
+    port: int = 53
+    timeout: float | None = None
     sock: socket.socket | None = None
 
     def __post_init__(self) -> None:
         self._lock = threading.RLock()
 
     @property
-    def resolver_address(self) -> tuple[str, int]:
-        return self.resolver_host, self.resolver_port
+    def address(self) -> tuple[str, int]:
+        return self.host, self.port
+
+    @staticmethod
+    def is_ipv6(s: str) -> bool:
+        try:
+            socket.inet_pton(socket.AF_INET6, s)
+            return True
+        except (socket.error, ValueError):
+            return False
 
     def connect(self) -> None:
         try:
             # socket.SOCK_DGRAM = UDP
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock = socket.socket(
+                (socket.AF_INET, socket.AF_INET6)[self.is_ipv6(self.host)],
+                socket.SOCK_DGRAM,
+            )
             # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
             # if self.ssl:
             #     context = ssl.create_default_context()
             #     self.sock = context.wrap_socket(
-            #         self.sock, server_hostname=self.resolver_host
+            #         self.sock, server_hostname=self.host
             #     )
 
-            self.sock.connect(self.resolver_address)
-        except:
+            self.sock.connect(self.address)
+            self.sock.settimeout(self.timeout)
+        except BaseException as ex:
             self.sock = None
-            raise
+            raise DNSError("socket connection error") from ex
 
     @property
     def connected(self) -> bool:
@@ -727,7 +740,7 @@ if __name__ == "__main__":
     logging.basicConfig()
     logger.setLevel([logging.WARNING, logging.DEBUG][args.debug])
 
-    with DNSClient(resolver_host=args.resolver) as client:
+    with DNSClient(host=args.resolver) as client:
         try:
             for record in client.query(
                 args.name,
