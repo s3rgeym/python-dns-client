@@ -100,17 +100,14 @@ Out[13]: Packet(header=Header(id=36118, response=True, opcode=<OpCode.QUERY: 0>,
 CLI Usage:
 
 ```bash
-$ python -m dns_client google.co -t ns -d
+$ python -m dns_client ya.ru -t aaaa -d
 DEBUG:__main__:set header flags: 0000000100100000
-DEBUG:__main__:Packet(header=Header(id=11148, response=False, opcode=<OpCode.QUERY: 0>, authoritative_record=False, truncated=False, recursion_desired=True, recursion_available=False, reserved=2, rcode=<ResponseCode.NOERROR: 0>, num_questions=1, num_records=0, num_authorities=0, num_additionals=0), questions=[Question(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>)], records=[])
+DEBUG:__main__:Packet(header=Header(id=40911, response=False, opcode=<OpCode.QUERY: 0>, authoritative=False, truncated=False, recursion_desired=True, recursion_available=False, reserved=False, authentic_data=True, check_disabled=False, rcode=<ResponseCode.NOERROR: 0>, num_questions=1, num_records=0, num_authorities=0, num_additionals=0), questions=[Question(name='ya.ru', qtype=<RecordType.AAAA: 28>, qclass=<RecordClass.IN: 1>)], records=[])
 DEBUG:__main__:get header flags: 0000000100100000
-DEBUG:__main__:raw query data: 2b 8c 01 20 00 01 00 00 00 00 00 00 06 67 6f 6f 67 6c 65 02 63 6f 00 00 02 00 01
+DEBUG:__main__:raw query data: 9f cf 01 20 00 01 00 00 00 00 00 00 02 79 61 02 72 75 00 00 1c 00 01
 DEBUG:__main__:set header flags: 1000000110000000
-DEBUG:__main__:Packet(header=Header(id=11148, response=True, opcode=<OpCode.QUERY: 0>, authoritative_record=False, truncated=False, recursion_desired=True, recursion_available=True, reserved=0, rcode=<ResponseCode.NOERROR: 0>, num_questions=1, num_records=4, num_authorities=0, num_additionals=0), questions=[Question(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>)], records=[Record(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns1.google.com'), Record(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns2.google.com'), Record(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns4.google.com'), Record(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns3.google.com')])
+DEBUG:__main__:Packet(header=Header(id=40911, response=True, opcode=<OpCode.QUERY: 0>, authoritative=False, truncated=False, recursion_desired=True, recursion_available=True, reserved=False, authentic_data=False, check_disabled=False, rcode=<ResponseCode.NOERROR: 0>, num_questions=1, num_records=1, num_authorities=0, num_additionals=0), questions=[Question(name='ya.ru', qtype=<RecordType.AAAA: 28>, qclass=<RecordClass.IN: 1>)], records=[Record(name='ya.ru', qtype=<RecordType.AAAA: 28>, qclass=<RecordClass.IN: 1>, ttl=528, value='2a02:6b8::2:242')])
 DEBUG:__main__:get header flags: 1000000110000000
-DEBUG:__main__:function query tooks 0.081s
-ns1.google.com
-ns2.google.com
-ns4.google.com
-ns3.google.com
+DEBUG:__main__:function query tooks 0.029s
+2a02:6b8::2:242
 ```
