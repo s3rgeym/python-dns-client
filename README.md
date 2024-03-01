@@ -21,7 +21,7 @@ Examples:
 ```python
 In [1]: from dns_client import DNSClient, RecordType
 
-# use cloud to resolve queries
+# use cloudflare to resolve dns queries
 In [2]: client = DNSClient('1.1.1.1')
 
 # get host ip address
