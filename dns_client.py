@@ -519,10 +519,10 @@ def split_hex(b: bytes, n: int = 2) -> list[str]:
 
 def timeit(fn: typing.Callable) -> typing.Callable:
     @functools.wraps(fn)
-    def timed(*args: typing.Any, **kwrags: typing.Any) -> typing.Any:
+    def timed(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         try:
             dt = -time.monotonic()
-            return fn(*args, **kwrags)
+            return fn(*args, **kwargs)
         finally:
             dt += time.monotonic()
             logger.debug("function %s tooks %.3fs", fn.__name__, dt)
