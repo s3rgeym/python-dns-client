@@ -452,8 +452,12 @@ class DNSBadResponse(DNSError):
     def __init__(self, response: Packet) -> None:
         self.response = response
         super().__init__(
-            f"dns server returns bad response code: 0x{self.response.response_code:02X}"
+            f"dns server returns bad response code: 0x{self.error_code:02X}"
         )
+
+    @property
+    def error_code(self) -> ResponseCode:
+        return self.response.header.rcode
 
     @classmethod
     def raise_for_response(cls, response: Packet) -> None:
@@ -506,8 +510,15 @@ class Packet(RawPacketHandler):
         return not self.is_response
 
     @property
-    def question(self) -> Question:
-        return self.questions[0]
+    def response_ok(self) -> bool:
+        return self.is_response and self.response_code == ResponseCode.NOERROR
+
+    @property
+    def question(self) -> Question | None:
+        try:
+            return self.questions[0]
+        except IndexError:
+            pass
 
     @classmethod
     def build_query(
