@@ -15,7 +15,7 @@ pip install dns-client
 Examples:
 
 ```python
-In [1]: from dummy_dns import DNSClient, DNSType
+In [1]: from dns_client import DNSClient, DNSType
 
 # use cloud to resolve queries
 In [2]: client = DNSClient('1.1.1.1')
