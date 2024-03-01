@@ -575,21 +575,18 @@ class DNSClient:
     def address(self) -> tuple[str, int]:
         return self.host, self.port
 
-    @staticmethod
-    def is_ipv6(s: str) -> bool:
+    @functools.cached_property
+    def address_family(self) -> socket.AddressFamily:
         try:
-            socket.inet_pton(socket.AF_INET6, s)
-            return True
+            socket.inet_pton(socket.AF_INET6, self.host)
+            return socket.AF_INET6
         except (socket.error, ValueError):
-            return False
+            return socket.AF_INET
 
     def connect(self) -> None:
         try:
             # socket.SOCK_DGRAM = UDP
-            self.sock = socket.socket(
-                (socket.AF_INET, socket.AF_INET6)[self.is_ipv6(self.host)],
-                socket.SOCK_DGRAM,
-            )
+            self.sock = socket.socket(self.address_family, socket.SOCK_DGRAM)
             # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
             # if self.ssl:
             #     context = ssl.create_default_context()
