@@ -21,7 +21,7 @@ import typing
 from enum import IntEnum
 
 __author__ = "Sergey M"
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 
 logger = logging.getLogger(__name__)
@@ -252,15 +252,19 @@ class Header(RawPacketHandler):
 
     # https://www.oreilly.com/api/v2/epubs/9781789349863/files/assets/346de5c8-e0a1-4694-bee3-2ffd68761f09.png
     # https://learn.microsoft.com/en-us/windows/win32/api/windns/ns-windns-dns_header
-    # устанавливаются через flags
+    # устанавливаются через flags (2 bytes)
     response: bool = False  # 0. QR: query=0
     opcode: OpCode = OpCode.QUERY  # 4 bits (!bytes)
-    authoritative_record: bool = False  # AA
+    authoritative: bool = False  # AA
     truncated: bool = False  # TC
     recursion_desired: bool = False  # RD
     recursion_available: bool = False  # RA
-    reserved: typing.Literal[0] = 0  # Z (3 bits)
+    reserved: bool = False  # Z (1 bit) alawys false (0)
+    # https://support.riverbed.com/apis/steelscript/packets/tutorial.html
+    authentic_data: bool = False  # AD (1 bit)
+    check_disabled: bool = False  # CD (1 bit)
     rcode: ResponseCode = ResponseCode.NOERROR  # response code (4 bits)
+
     # 2 bytes each
     num_questions: int = 0
     num_records: int = 0
@@ -297,11 +301,13 @@ class Header(RawPacketHandler):
         writer = BitsWriter(16)
         writer.write(self.response)
         writer.write(self.opcode, 4)
-        writer.write(self.authoritative_record)
+        writer.write(self.authoritative)
         writer.write(self.truncated)
         writer.write(self.recursion_desired)
         writer.write(self.recursion_available)
-        writer.write(self.reserved, 3)
+        writer.write(self.reserved)
+        writer.write(self.authentic_data)
+        writer.write(self.check_disabled)
         writer.write(self.rcode, 4)
         logger.debug(f"get header flags: {writer.result:016b}")
         return writer.result
@@ -312,11 +318,13 @@ class Header(RawPacketHandler):
         reader = BitsReader(v, 16)
         self.response = reader.read_bool()
         self.opcode = OpCode(reader.read(4))
-        self.authoritative_record = reader.read_bool()
+        self.authoritative = reader.read_bool()
         self.truncated = reader.read_bool()
         self.recursion_desired = reader.read_bool()
         self.recursion_available = reader.read_bool()
-        self.reserved = reader.read(3)
+        self.reserved = reader.read_bool()
+        self.authentic_data = reader.read_bool()
+        self.check_disabled = reader.read_bool()
         self.rcode = ResponseCode(reader.read(4))
 
     def to_bytes(self) -> bytes:
