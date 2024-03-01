@@ -77,3 +77,21 @@ DNSError: dns server returns bad response code: 0x05
 In [12]: adguard_client.get_response_query('www.linux.org', RecordType.AXFR)
 Out[12]: Packet(header=Header(id=36118, is_response=True, opcode=<OpCode.QUERY: 0>, authoritative_answer=False, truncated=False, recursion_desired=True, recursion_available=False, reserved=2, response_code=<ResponseCode.REFUSED: 5>, num_questions=1, num_answers=0, num_authorities=0, num_additionals=0), questions=[Question(name='www.linux.org', qtype=<RecordType.AXFR: 252>, qclass=<RecordClass.IN: 1>)], answers=[])
 ```
+
+CLI Usage:
+
+```bash
+$ python -m dns_client google.co -t ns -d
+DEBUG:__main__:set header flags: 0000000100100000
+DEBUG:__main__:Packet(header=Header(id=11148, is_response=False, opcode=<OpCode.QUERY: 0>, authoritative_answer=False, truncated=False, recursion_desired=True, recursion_available=False, reserved=2, response_code=<ResponseCode.NOERROR: 0>, num_questions=1, num_answers=0, num_authorities=0, num_additionals=0), questions=[Question(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>)], answers=[])
+DEBUG:__main__:get header flags: 0000000100100000
+DEBUG:__main__:raw query data: 2b 8c 01 20 00 01 00 00 00 00 00 00 06 67 6f 6f 67 6c 65 02 63 6f 00 00 02 00 01
+DEBUG:__main__:set header flags: 1000000110000000
+DEBUG:__main__:Packet(header=Header(id=11148, is_response=True, opcode=<OpCode.QUERY: 0>, authoritative_answer=False, truncated=False, recursion_desired=True, recursion_available=True, reserved=0, response_code=<ResponseCode.NOERROR: 0>, num_questions=1, num_answers=4, num_authorities=0, num_additionals=0), questions=[Question(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>)], answers=[Answer(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns1.google.com'), Answer(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns2.google.com'), Answer(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns4.google.com'), Answer(name='google.co', qtype=<RecordType.NS: 2>, qclass=<RecordClass.IN: 1>, ttl=345600, value='ns3.google.com')])
+DEBUG:__main__:get header flags: 1000000110000000
+DEBUG:__main__:function query tooks 0.081s
+ns1.google.com
+ns2.google.com
+ns4.google.com
+ns3.google.com
+```
