@@ -458,11 +458,11 @@ class Packet(_FromBuffer):
 
     def to_bytes(self) -> bytes:
         to_bytes = operator.methodcaller("to_bytes")
-        return (
-            self.header.to_bytes()
-            + b"".join(map(to_bytes, self.questions))
-            + b"".join(map(to_bytes, self.answers))
-        )
+        return b"".join([
+            self.header.to_bytes(),
+            *map(to_bytes, self.questions),
+            *map(to_bytes, self.answers),
+        ])
 
     @property
     def response_code(self) -> ResponseCode:
