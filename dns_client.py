@@ -154,7 +154,7 @@ class BitsReader:
 
     In [3]: reader = BitsReader(0x8180, 16)
 
-    In [4]: f'{reader.bits:016b}'
+    In [4]: f'{reader.value:016b}'
     Out[4]: '1000000110000000'
 
     In [5]: reader.read()
@@ -639,8 +639,8 @@ class DNSClient:
 
 
 if __name__ == "__main__":
-    import sys
     import argparse
+    import sys
 
     class NameSpace(argparse.Namespace):
         resolver: str
