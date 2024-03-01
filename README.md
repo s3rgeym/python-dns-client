@@ -1,4 +1,4 @@
-# Python DNS Client
+# Python DNS Client Library
 
 A simple dns client library for send queries.
 
