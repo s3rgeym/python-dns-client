@@ -21,12 +21,22 @@ import typing
 from enum import IntEnum
 
 __author__ = "Sergey M"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 logger = logging.getLogger(__name__)
 
-__all__ = ("RecordClass", "RecordType", "DNSClient", "DNSError")
+__all__: tuple[str, ...] = (
+    "DNSBadResponse",
+    "DNSClient",
+    "DNSError",
+    "Header",
+    "Packet",
+    "Question",
+    "Record",
+    "RecordClass",
+    "RecordType",
+)
 
 
 # https://github.com/Habbie/hello-dns/blob/master/tdns/dns-storage.hh#L73
@@ -87,7 +97,7 @@ class RawPacketHandler:
         return o
 
 
-# сетевой формат - big-endian (NULL-ами слева добиваются до нужной длины)
+# ! — big-endian, используемый как стандарт при передаче по сети (все компьютеры little-endian, если че)
 HEADER_FORMAT = struct.Struct("!6H")
 
 
@@ -243,17 +253,17 @@ class Header(RawPacketHandler):
     # https://www.oreilly.com/api/v2/epubs/9781789349863/files/assets/346de5c8-e0a1-4694-bee3-2ffd68761f09.png
     # https://learn.microsoft.com/en-us/windows/win32/api/windns/ns-windns-dns_header
     # устанавливаются через flags
-    is_response: bool = False  # 0. QR: query=0
+    response: bool = False  # 0. QR: query=0
     opcode: OpCode = OpCode.QUERY  # 4 bits (!bytes)
-    authoritative_answer: bool = False  # AA
+    authoritative_record: bool = False  # AA
     truncated: bool = False  # TC
     recursion_desired: bool = False  # RD
     recursion_available: bool = False  # RA
     reserved: typing.Literal[0] = 0  # Z (3 bits)
-    response_code: ResponseCode = ResponseCode.NOERROR  # response code (4 bits)
+    rcode: ResponseCode = ResponseCode.NOERROR  # response code (4 bits)
     # 2 bytes each
     num_questions: int = 0
-    num_answers: int = 0
+    num_records: int = 0
     num_authorities: int = 0
     num_additionals: int = 0
 
@@ -276,7 +286,7 @@ class Header(RawPacketHandler):
     # .... ...1 .... .... = Recursion desired: Do query recursively
     # .... .... 1... .... = Recursion available: Server can do recursive queries
     # .... .... .0.. .... = Z: reserved (0)
-    # .... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
+    # .... .... ..0. .... = Record authenticated: Record/authority portion was not authenticated by the server
     # .... .... ...0 .... = Non-authenticated data: Unacceptable
     # .... .... .... 0000 = Reply code: No error (0)
 
@@ -285,14 +295,14 @@ class Header(RawPacketHandler):
     @property
     def flags(self) -> int:
         writer = BitsWriter(16)
-        writer.write(self.is_response)
+        writer.write(self.response)
         writer.write(self.opcode, 4)
-        writer.write(self.authoritative_answer)
+        writer.write(self.authoritative_record)
         writer.write(self.truncated)
         writer.write(self.recursion_desired)
         writer.write(self.recursion_available)
         writer.write(self.reserved, 3)
-        writer.write(self.response_code, 4)
+        writer.write(self.rcode, 4)
         logger.debug(f"get header flags: {writer.result:016b}")
         return writer.result
 
@@ -300,21 +310,21 @@ class Header(RawPacketHandler):
     def flags(self, v: int) -> None:
         logger.debug(f"set header flags: {v:016b}")
         reader = BitsReader(v, 16)
-        self.is_response = reader.read_bool()
+        self.response = reader.read_bool()
         self.opcode = OpCode(reader.read(4))
-        self.authoritative_answer = reader.read_bool()
+        self.authoritative_record = reader.read_bool()
         self.truncated = reader.read_bool()
         self.recursion_desired = reader.read_bool()
         self.recursion_available = reader.read_bool()
         self.reserved = reader.read(3)
-        self.response_code = ResponseCode(reader.read(4))
+        self.rcode = ResponseCode(reader.read(4))
 
     def to_bytes(self) -> bytes:
         return HEADER_FORMAT.pack(
             self.id,
             self.flags,
             self.num_questions,
-            self.num_answers,
+            self.num_records,
             self.num_authorities,
             self.num_additionals,
         )
@@ -324,7 +334,7 @@ class Header(RawPacketHandler):
             self.id,
             self.flags,
             self.num_questions,
-            self.num_answers,
+            self.num_records,
             self.num_authorities,
             self.num_additionals,
         ) = HEADER_FORMAT.unpack(buf.read(12))
@@ -387,8 +397,8 @@ class Question(RawPacketHandler):
 # https://implement-dns.wizardzines.com/book/part_2
 # https://github.com/cmol/dnsmessage/blob/main/lib/dnsmessage/resource_record.rb
 @dataclasses.dataclass
-class Answer(RawPacketHandler):
-    """Response Answer"""
+class Record(RawPacketHandler):
+    """Response Record"""
 
     name: str | None = None
     qtype: int = RecordType.EMPTY
@@ -435,6 +445,10 @@ class Answer(RawPacketHandler):
 
 
 class DNSError(Exception):
+    pass
+
+
+class DNSBadResponse(DNSError):
     def __init__(self, response: Packet) -> None:
         self.response = response
         super().__init__(
@@ -447,13 +461,17 @@ class DNSError(Exception):
             raise cls(response)
 
 
+def isiterable(v: typing.Any) -> bool:
+    return isinstance(v, typing.Sequence) and not isinstance(v, (str, bytes))
+
+
 @dataclasses.dataclass
 class Packet(RawPacketHandler):
     """Query or Response Packet"""
 
     header: Header | None = None
     questions: list[Question] = dataclasses.field(default_factory=list)
-    answers: list[Answer] = dataclasses.field(default_factory=list)
+    records: list[Record] = dataclasses.field(default_factory=list)
     # TODO: additionals and etc
 
     def parse(self, buf: io.BinaryIO) -> None:
@@ -461,25 +479,27 @@ class Packet(RawPacketHandler):
         self.questions = [
             Question.from_buffer(buf) for _ in range(self.header.num_questions)
         ]
-        self.answers = [
-            Answer.from_buffer(buf) for _ in range(self.header.num_answers)
+        self.records = [
+            Record.from_buffer(buf) for _ in range(self.header.num_records)
         ]
 
     def to_bytes(self) -> bytes:
         to_bytes = operator.methodcaller("to_bytes")
-        return operator.concat(
-            self.header.to_bytes(),
-            *map(to_bytes, self.questions),
-            *map(to_bytes, self.answers),
+        return b"".join(
+            [
+                self.header.to_bytes(),
+                *map(to_bytes, self.questions),
+                *map(to_bytes, self.records),
+            ]
         )
 
     @property
     def response_code(self) -> ResponseCode:
-        return self.header.response_code
+        return self.header.rcode
 
     @property
     def is_response(self) -> bool:
-        return self.header.is_response
+        return self.header.response
 
     @property
     def is_query(self) -> bool:
@@ -493,7 +513,7 @@ class Packet(RawPacketHandler):
     def build_query(
         cls: typing.Type[Packet],
         qname: str,
-        qtype: RecordType = RecordType.A,
+        qtype: RecordType | list[RecordType] = RecordType.A,
         /,
     ) -> Packet:
         # эти флаги устанавливает dig
@@ -505,11 +525,19 @@ class Packet(RawPacketHandler):
         # .... .... .0.. .... = Z: reserved (0)
         # .... .... ..1. .... = AD bit: Set
         # .... .... ...0 .... = Non-authenticated data: Unacceptable
+
+        questions = [
+            Question(qname, typ, qclass=RecordClass.IN)
+            for typ in (qtype if isiterable(qtype) else [qtype])
+        ]
+
         return cls(
             header=Header(
-                id=secrets.randbits(16), num_questions=1, flags=0x120
+                id=secrets.randbits(16),
+                num_questions=len(questions),
+                flags=0x120,
             ),
-            questions=[Question(qname, qtype, qclass=RecordClass.IN)],
+            questions=questions,
         )
 
 
@@ -606,7 +634,7 @@ class DNSClient:
     def get_response_query(
         self,
         name: str,
-        qtype: RecordType = RecordType.A,
+        qtype: RecordType | list[RecordType] = RecordType.A,
     ) -> Packet:
         """sends query and returns response"""
         query = Packet.build_query(name, qtype)
@@ -623,19 +651,37 @@ class DNSClient:
     def query(
         self,
         name: str,
-        qtype: RecordType = RecordType.A,
-    ) -> list[Answer]:
-        """sends query and returns list of answers, raises DNSError if respoinse code != 0x00"""
+        qtype: RecordType | list[RecordType] = RecordType.A,
+    ) -> list[Record]:
+        """sends query and returns list of records, raises DNSBadResponse if response code != 0x00"""
         response = self.get_response_query(name, qtype=qtype)
-        DNSError.raise_for_response(response)
-        return response.answers[:]
+        DNSBadResponse.raise_for_response(response)
+        return response.records[:]
 
     def gethostaddr(self, s: str) -> str | None:
-        records = self.query(s)
+        records = self.query(s) or self.query(s, RecordType.AAAA)
         return records[0].value if records else None
 
     def get_name_servers(self, s: str) -> list[str]:
         return [x.value for x in self.query(s, RecordType.NS)]
+
+    def get_mail_servers(self, s: str) -> list[tuple[int, str]]:
+        return [x.value for x in self.query(s, RecordType.MX)]
+
+    def get_txt_records(self, s: str) -> list[str]:
+        return [x.value for x in self.query(s, RecordType.TXT)]
+
+    def get_all_records(self, s: str) -> list[tuple[str, typing.Any]]:
+        rv = []
+        for t in (
+            RecordType.A,
+            RecordType.AAAA,
+            RecordType.NS,
+            RecordType.MX,
+            RecordType.TXT,
+        ):
+            rv += [(r.qtype.name, r.value) for r in self.query(s, t)]
+        return rv
 
 
 if __name__ == "__main__":
@@ -655,6 +701,7 @@ if __name__ == "__main__":
         "--type",
         help="request record type (case insensetive)",
         default="A",
+        nargs="+",
         type=str.upper,
         choices=["A", "AAAA", "CNAME", "MX", "NS", "TXT"],
     )
@@ -666,7 +713,7 @@ if __name__ == "__main__":
     args = parser.parse_args(namespace=NameSpace())
 
     try:
-        qtype = RecordType[args.type.upper()]
+        qtypes = [RecordType[x] for x in args.type]
     except KeyError:
         # parser.error(
         #     "invalid record type; must be one of: "
@@ -681,7 +728,7 @@ if __name__ == "__main__":
         try:
             for record in client.query(
                 args.name,
-                qtype=qtype,
+                qtype=qtypes,
             ):
                 print(record.value)
         except Exception as ex:
