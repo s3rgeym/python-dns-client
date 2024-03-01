@@ -21,7 +21,7 @@ import typing
 from enum import IntEnum
 
 __author__ = "Sergey M"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 logger = logging.getLogger(__name__)
@@ -561,6 +561,14 @@ def timeit(fn: typing.Callable) -> typing.Callable:
     return timed
 
 
+SOCKET_EXCEPTIONS = (
+    socket.timeout,
+    socket.error,
+    socket.herror,
+    socket.gaierror,
+)
+
+
 @dataclasses.dataclass
 class DNSClient:
     host: str = "8.8.8.8"
@@ -596,9 +604,9 @@ class DNSClient:
 
             self.sock.connect(self.address)
             self.sock.settimeout(self.timeout)
-        except BaseException as ex:
+        except SOCKET_EXCEPTIONS as ex:
             self.sock = None
-            raise DNSError("socket connection error") from ex
+            raise DNSError(f"connection error: {ex}") from ex
 
     @property
     def connected(self) -> bool:
@@ -622,10 +630,13 @@ class DNSClient:
         self.disconnect()
 
     def read_packet(self) -> Packet:
+        b = bytearray(4096)
         with self._lock:
-            b = bytearray(4096)
-            self.sock.recv_into(b, len(b))
-            return Packet.from_buffer(io.BytesIO(b))
+            try:
+                self.sock.recv_into(b, len(b))
+            except SOCKET_EXCEPTIONS as ex:
+                raise DNSError(f"write error: {ex}") from ex
+        return Packet.from_buffer(io.BytesIO(b))
 
     def send_packet(self, packet: Packet) -> Packet:
         # Подключаемся, если не были подключены
@@ -641,7 +652,10 @@ class DNSClient:
         logger.debug("raw query data: %s", " ".join(split_hex(data)))
 
         with self._lock:
-            self.sock.send(data)
+            try:
+                self.sock.send(data)
+            except SOCKET_EXCEPTIONS as ex:
+                raise DNSError(f"read error: {ex}") from ex
             return self.read_packet()
 
     def get_response_query(
@@ -702,13 +716,15 @@ if __name__ == "__main__":
     import sys
 
     class NameSpace(argparse.Namespace):
-        resolver: str
+        host: str
+        port: int
         type: str
         debug: bool
         name: str
 
     parser = argparse.ArgumentParser(description="Python DNS Client")
-    parser.add_argument("--resolver", default="1.1.1.1")
+    parser.add_argument("-H", "--host", default="1.1.1.1", help="dns host")
+    parser.add_argument("-p", "--port", default=53, type=int, help="dns port")
     parser.add_argument(
         "-t",
         "--type",
@@ -737,7 +753,7 @@ if __name__ == "__main__":
     logging.basicConfig()
     logger.setLevel([logging.WARNING, logging.DEBUG][args.debug])
 
-    with DNSClient(host=args.resolver) as client:
+    with DNSClient(args.host, args.port) as client:
         try:
             for record in client.query(
                 args.name,
