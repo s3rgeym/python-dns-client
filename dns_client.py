@@ -220,6 +220,7 @@ class BitsWriter:
 
     def write(self, data: int | bool, n: int = 1) -> None:
         """set n bits from data at current offset"""
+        assert n >= 1
         mask = (1 << n) - 1
         shift = self.length - n - self.offset
         # можно еще предварительно обнулять флаги
@@ -232,7 +233,7 @@ class BitsWriter:
 # # https://github.com/lun-4/zigdig/blob/master/src/packet.zig
 @dataclasses.dataclass
 class Header(RawPacketHandler):
-    """packet header"""
+    """Packet Header"""
 
     # id: int = dataclasses.field(
     #     default_factory=lambda: secrets.randbits(16)
