@@ -73,8 +73,7 @@ class RecordClass(IntEnum):
 T = typing.TypeVar("T")
 
 
-# TODO: переименовать?
-class BinaryHandler:
+class RawPacketHandler:
     def parse(self, buf: typing.BinaryIO) -> None:
         raise NotImplementedError
 
@@ -232,7 +231,7 @@ class BitsWriter:
 # http://images.slideplayer.com/18/5705521/slides/slide_16.jpg
 # # https://github.com/lun-4/zigdig/blob/master/src/packet.zig
 @dataclasses.dataclass
-class Header(BinaryHandler):
+class Header(RawPacketHandler):
     """packet header"""
 
     # id: int = dataclasses.field(
@@ -356,7 +355,7 @@ def read_name(buf: typing.BinaryIO) -> str:
 
 
 @dataclasses.dataclass
-class Question(BinaryHandler):
+class Question(RawPacketHandler):
     """Query Question"""
 
     name: str | None = None
@@ -387,7 +386,7 @@ class Question(BinaryHandler):
 # https://implement-dns.wizardzines.com/book/part_2
 # https://github.com/cmol/dnsmessage/blob/main/lib/dnsmessage/resource_record.rb
 @dataclasses.dataclass
-class Answer(BinaryHandler):
+class Answer(RawPacketHandler):
     """Response Answer"""
 
     name: str | None = None
@@ -448,7 +447,7 @@ class DNSError(Exception):
 
 
 @dataclasses.dataclass
-class Packet(BinaryHandler):
+class Packet(RawPacketHandler):
     """Query or Response Packet"""
 
     header: Header | None = None
