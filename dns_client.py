@@ -21,7 +21,7 @@ import typing
 from enum import IntEnum
 
 __author__ = "Sergey M"
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 
 logger = logging.getLogger(__name__)
@@ -569,6 +569,17 @@ SOCKET_EXCEPTIONS = (
 )
 
 
+def handle_socket_error(f: typing.Callable) -> typing.Callable:
+    @functools.wraps(f)
+    def wrap(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        try:
+            return f(*args, **kwargs)
+        except SOCKET_EXCEPTIONS as ex:
+            raise DNSError(f"socket error: {ex}") from ex
+
+    return wrap
+
+
 @dataclasses.dataclass
 class DNSClient:
     host: str = "8.8.8.8"
@@ -591,22 +602,18 @@ class DNSClient:
         except (socket.error, ValueError):
             return socket.AF_INET
 
+    @handle_socket_error
     def connect(self) -> None:
-        try:
-            # socket.SOCK_DGRAM = UDP
-            self.sock = socket.socket(self.address_family, socket.SOCK_DGRAM)
-            # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
-            # if self.ssl:
-            #     context = ssl.create_default_context()
-            #     self.sock = context.wrap_socket(
-            #         self.sock, server_hostname=self.host
-            #     )
-
-            self.sock.connect(self.address)
-            self.sock.settimeout(self.timeout)
-        except SOCKET_EXCEPTIONS as ex:
-            self.sock = None
-            raise DNSError(f"connection error: {ex}") from ex
+        # socket.SOCK_DGRAM = UDP
+        self.sock = socket.socket(self.address_family, socket.SOCK_DGRAM)
+        # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
+        # if self.ssl:
+        #     context = ssl.create_default_context()
+        #     self.sock = context.wrap_socket(
+        #         self.sock, server_hostname=self.host
+        #     )
+        self.sock.connect(self.address)
+        self.sock.settimeout(self.timeout)
 
     @property
     def connected(self) -> bool:
@@ -629,15 +636,14 @@ class DNSClient:
     ) -> None:
         self.disconnect()
 
+    @handle_socket_error
     def read_packet(self) -> Packet:
         b = bytearray(4096)
         with self._lock:
-            try:
-                self.sock.recv_into(b, len(b))
-            except SOCKET_EXCEPTIONS as ex:
-                raise DNSError(f"write error: {ex}") from ex
+            self.sock.recv_into(b, len(b))
         return Packet.from_buffer(io.BytesIO(b))
 
+    @handle_socket_error
     def send_packet(self, packet: Packet) -> Packet:
         # Подключаемся, если не были подключены
         if not self.connected:
@@ -652,10 +658,7 @@ class DNSClient:
         logger.debug("raw query data: %s", " ".join(split_hex(data)))
 
         with self._lock:
-            try:
-                self.sock.send(data)
-            except SOCKET_EXCEPTIONS as ex:
-                raise DNSError(f"read error: {ex}") from ex
+            self.sock.send(data)
             return self.read_packet()
 
     def get_response_query(
@@ -703,8 +706,9 @@ class DNSClient:
         for t in (
             RecordType.A,
             RecordType.AAAA,
-            RecordType.NS,
+            RecordType.CNAME,
             RecordType.MX,
+            RecordType.NS,
             RecordType.TXT,
         ):
             rv += [(r.qtype.name, r.value) for r in self.query(s, t)]
