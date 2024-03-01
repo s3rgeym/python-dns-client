@@ -531,6 +531,9 @@ class Packet(RawPacketHandler):
             for typ in (qtype if isiterable(qtype) else [qtype])
         ]
 
+        if len(questions) > 1:
+            logger.warning("most servers don't support multiple questions")
+
         return cls(
             header=Header(
                 id=secrets.randbits(16),
