@@ -21,7 +21,7 @@ import typing
 from enum import IntEnum
 
 __author__ = "Sergey M"
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 
 logger = logging.getLogger(__name__)
@@ -615,16 +615,20 @@ class DNSClient:
 
     @handle_socket_error
     def connect(self) -> None:
-        # socket.SOCK_DGRAM = UDP
-        self.sock = socket.socket(self.address_family, socket.SOCK_DGRAM)
-        # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
-        # if self.ssl:
-        #     context = ssl.create_default_context()
-        #     self.sock = context.wrap_socket(
-        #         self.sock, server_hostname=self.host
-        #     )
-        self.sock.connect(self.address)
-        self.sock.settimeout(self.timeout)
+        try:
+            # socket.SOCK_DGRAM = UDP
+            self.sock = socket.socket(self.address_family, socket.SOCK_DGRAM)
+            # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
+            # if self.ssl:
+            #     context = ssl.create_default_context()
+            #     self.sock = context.wrap_socket(
+            #         self.sock, server_hostname=self.host
+            #     )
+            self.sock.connect(self.address)
+            self.sock.settimeout(self.timeout)
+        except (socket.gaierror, socket.error):
+            self.sock = None
+            raise
 
     @property
     def connected(self) -> bool:
