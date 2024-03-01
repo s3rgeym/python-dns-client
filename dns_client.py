@@ -175,7 +175,7 @@ class BitsReader:
     Out[14]: 0
 
     In [15]: reader
-    Out[15]: BitsReader(bits=33152, length=16)
+    Out[15]: BitsReader(value=33152, length=16)
 
     In [18]: reader.offset = 6
 
