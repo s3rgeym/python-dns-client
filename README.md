@@ -9,7 +9,11 @@ A simple dns client library for send queries.
 Install:
 
 ```bash
+# from pypi.org
 pip install dns-client
+
+# latest commit
+pip install git+https://github.com/s3rgeym/python-dns-client.git
 ```
 
 Examples:
