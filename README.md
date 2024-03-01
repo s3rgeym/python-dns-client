@@ -99,7 +99,7 @@ Out[13]: Packet(header=Header(id=36118, response=True, opcode=<OpCode.QUERY: 0>,
 
 CLI Usage:
 
-```bash
+```python
 $ python -m dns_client ya.ru -t aaaa -d
 DEBUG:__main__:set header flags: 0000000100100000
 DEBUG:__main__:Packet(header=Header(id=40911, response=False, opcode=<OpCode.QUERY: 0>, authoritative=False, truncated=False, recursion_desired=True, recursion_available=False, reserved=False, authentic_data=True, check_disabled=False, rcode=<ResponseCode.NOERROR: 0>, num_questions=1, num_records=0, num_authorities=0, num_additionals=0), questions=[Question(name='ya.ru', qtype=<RecordType.AAAA: 28>, qclass=<RecordClass.IN: 1>)], records=[])
