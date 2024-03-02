@@ -82,7 +82,10 @@ Response Flags = 0x8180
 .... .... ...0 .... = Check Disabled (False)
 .... .... .... 0000 = Rcode (<ResponseCode.NOERROR: 0>)
 
-Number of Records: 2
+Number of Records     : 2
+Number of Questions   : 1
+Number of Authorities : 0
+Number of Additionals : 1
 
 ns2.yandex.ru
 ns1.yandex.ru
