@@ -1,6 +1,4 @@
-"""\
-Python client library for sending DNS queries. Supports `requests`.
-"""
+"""Python client library for sending DNS queries."""
 
 __author__ = "Sergey M"
 __version__ = "0.1.7"

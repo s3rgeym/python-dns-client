@@ -4,11 +4,12 @@
 [ ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/dns-client) ]()
 [ ![PyPI - Downloads](https://img.shields.io/pypi/dm/dns-client) ]()
 
-Python client library for sending DNS queries. Supports `requests`.
+Python client library for sending DNS queries.
 
 * null-dependency
 * threadsafe
 * type hints
+* contains adapter for requests
 
 Install:
 

@@ -1,4 +1,5 @@
 # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+# https://peps.python.org/pep-0621/#example
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
@@ -17,7 +18,7 @@ requires-python = ">=3.11.7"
 
 dependencies = []
 
-dynamic = ["version"]
+dynamic = ["version", "description"]
 
 # pip install -e '.[dev]'
 # pip install -e '.[test]'
