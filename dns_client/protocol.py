@@ -361,6 +361,14 @@ class Packet(DataHandler):
         qtype: RecordType | list[RecordType] = RecordType.A,
         /,
     ) -> Packet:
+        questions = [
+            Question(qname, typ, qclass=RecordClass.IN)
+            for typ in (qtype if isiterable(qtype) else [qtype])
+        ]
+
+        if len(questions) > 1:
+            logger.warning("most name servers don't support multiple questions")
+
         # эти флаги устанавливает dig
         # Flags: 0x0120 Standard query
         # 0... .... .... .... = Response: Message is a query
@@ -370,15 +378,6 @@ class Packet(DataHandler):
         # .... .... .0.. .... = Z: reserved (0)
         # .... .... ..1. .... = AD bit: Set
         # .... .... ...0 .... = Non-authenticated data: Unacceptable
-
-        questions = [
-            Question(qname, typ, qclass=RecordClass.IN)
-            for typ in (qtype if isiterable(qtype) else [qtype])
-        ]
-
-        if len(questions) > 1:
-            logger.warning("most name servers don't support multiple questions")
-
         return cls(
             header=Header(
                 id=secrets.randbits(16),

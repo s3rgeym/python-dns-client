@@ -130,7 +130,7 @@ class DNSClient:
             except SOCKET_ERRORS as ex:
                 raise SocketError("socket write error") from ex
 
-    def get_response_query(
+    def get_query_response(
         self,
         name: str,
         qtype: RecordType | list[RecordType] = RecordType.A,
@@ -141,7 +141,7 @@ class DNSClient:
         # assert query.header.flags == 0x120
         response = self.send_packet(query)
         logger.debug(response)
-        response.header.flags
+        assert response.is_response
         assert query.header.id == response.header.id
         assert query.question == response.question
         return response
@@ -153,7 +153,7 @@ class DNSClient:
         qtype: RecordType | list[RecordType] = RecordType.A,
     ) -> list[Record]:
         """sends query and returns list of records, raises DNSError if response code != 0x00"""
-        response = self.get_response_query(name, qtype=qtype)
+        response = self.get_query_response(name, qtype=qtype)
         DNSError.raise_for_response(response)
         return response.records[:]
 
