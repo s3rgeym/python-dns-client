@@ -18,7 +18,7 @@ requires-python = ">=3.11.7"
 
 dependencies = []
 
-dynamic = ["version", "description"]
+dynamic = ["version"]
 
 # pip install -e '.[dev]'
 # pip install -e '.[test]'
@@ -42,6 +42,5 @@ Repository = "https://github.com/s3rgeym/python-dns-client.git"
 
 [tool.setuptools.dynamic]
 version = {attr = "dns_client.__version__"}
-description = {attr = "dns_client.__doc__"}
 
 [project.scripts]
