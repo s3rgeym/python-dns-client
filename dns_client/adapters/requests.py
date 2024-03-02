@@ -36,6 +36,7 @@ class DNSClientAdapter(requests.adapters.HTTPAdapter):
                 result.scheme + "://" + resolved_ip,
             )
 
+            logger.debug("modified request url: %s", request.url)
             request.headers["Host"] = result.hostname
         else:
             connection_pool_kw.pop("server_hostname", None)
