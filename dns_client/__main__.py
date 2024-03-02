@@ -1,7 +1,6 @@
 import argparse
 import logging
 import sys
-import typing
 from functools import partial
 
 from .client import DNSClient
@@ -15,6 +14,7 @@ print_err = partial(print, file=sys.stderr)
 def print_response(response: Packet) -> None:
     header = response.header
 
+    print_err("Response Flags =", hex(header.flags))
     bits_len = 16
     bin_str = f"{header.flags:0{bits_len}b}"
 
@@ -41,7 +41,7 @@ def print_response(response: Packet) -> None:
         row_data = " ".join(split_chunks(row_data, 4))
         label = key.title().replace("_", " ")
         value = repr(getattr(header, key))
-        print_err(row_data, ":", label, "=", value)
+        print_err(row_data, "=", label, f"({value})")
         offset += length
 
     print_err()

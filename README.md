@@ -70,19 +70,20 @@ CLI Usage:
 
 ```python
 $ python -m dns_client ya.ru -t ns -H 127.0.0.1
-1... .... .... .... : Response = True
-.000 0... .... .... : Opcode = <OpCode.QUERY: 0>
-.... .0.. .... .... : Authoritative = False
-.... ..0. .... .... : Truncated = False
-.... ...1 .... .... : Recursion Desired = True
-.... .... 1... .... : Recursion Available = True
-.... .... .0.. .... : Reserved = False
-.... .... ..0. .... : Authentic Data = False
-.... .... ...0 .... : Check Disabled = False
-.... .... .... 0000 : Rcode = <ResponseCode.NOERROR: 0>
+Response Flags = 0x8180
+1... .... .... .... = Response (True)
+.000 0... .... .... = Opcode (<OpCode.QUERY: 0>)
+.... .0.. .... .... = Authoritative (False)
+.... ..0. .... .... = Truncated (False)
+.... ...1 .... .... = Recursion Desired (True)
+.... .... 1... .... = Recursion Available (True)
+.... .... .0.. .... = Reserved (False)
+.... .... ..0. .... = Authentic Data (False)
+.... .... ...0 .... = Check Disabled (False)
+.... .... .... 0000 = Rcode (<ResponseCode.NOERROR: 0>)
 
 Number of Records: 2
 
-ns1.yandex.ru
 ns2.yandex.ru
+ns1.yandex.ru
 ```
