@@ -22,7 +22,7 @@ class DNSClientAdapter(requests.adapters.HTTPAdapter):
     def send(self, request, **kwargs):
         result = urlparse(request.url)
         resolved_ip = self.resolve(result.hostname)
-        logger.debug(f"{result.hostname} => {resolved_ip}")
+        logger.debug("resolved %s => %s", result.hostname, resolved_ip)
 
         connection_pool_kw = self.poolmanager.connection_pool_kw
         if result.scheme in ("http", "https") and resolved_ip:
