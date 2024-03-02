@@ -39,7 +39,7 @@ class DNSClientAdapter(HTTPAdapter):
         }
         request.url = request.url.replace(
             u.scheme + "://" + u.hostname,
-            u.scheme + "://" + resolved_ip,
+            u.scheme + "://" + (resolve_ip, f"[{resolved_ip}]")[":" in resolve_ip],
         )
         logger.debug("request url: %s", request.url)
         request.headers["Host"] = u.hostname
