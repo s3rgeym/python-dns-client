@@ -34,15 +34,15 @@ def print_response(response: Packet) -> None:
 
     offset = 0
     for attr, length in attrs_len.items():
-        row_data = (
+        data = (
             bits_str[offset : offset + length]
             .rjust(offset + length, ".")
             .ljust(len(bits_str), ".")
         )
-        row_data = " ".join(split_chunks(row_data, 4))
+        data = " ".join(split_chunks(data, 4))
         label = attr.title().replace("_", " ")
         value = getattr(header, attr)
-        print_err(row_data, "=", label, f"({value!r})")
+        print_err(data, "=", label, f"({value!r})")
         offset += length
 
     print_err()
