@@ -4,7 +4,7 @@ import sys
 from functools import partial
 
 from .client import DNSClient
-from .log import logger
+from .log import disable_logger, logger
 from .protocol import Packet, RecordType
 from .utils import split_chunks
 
@@ -102,7 +102,8 @@ if __name__ == "__main__":
                 qtype=qtypes,
             )
 
-            print_response(response)
+            with disable_logger():
+                print_response(response)
 
             for record in response.records:
                 print(record.value)
