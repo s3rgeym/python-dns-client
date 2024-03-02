@@ -1,0 +1,23 @@
+"""\
+Python client library for sending DNS queries. Supports `requests`.
+"""
+
+__author__ = "Sergey M"
+__version__ = "0.1.7"
+
+from .client import DNSClient
+from .errors import ConnectionError, DNSError, SocketError
+from .protocol import Header, Packet, Question, Record, RecordClass, RecordType
+
+__all__: tuple[str, ...] = (
+    "DNSError",
+    "DNSClient",
+    "ConnectionError",
+    "Header",
+    "Packet",
+    "Question",
+    "Record",
+    "RecordClass",
+    "RecordType",
+    "SocketError",
+)

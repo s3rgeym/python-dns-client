@@ -22,6 +22,11 @@ dynamic = ["version"]
 # pip install -e '.[dev]'
 # pip install -e '.[test]'
 [project.optional-dependencies]
+requests = [
+  "requests",
+  "cchardet",
+]
+
 test = [
   "pytest",
 ]
@@ -36,5 +41,6 @@ Repository = "https://github.com/s3rgeym/python-dns-client.git"
 
 [tool.setuptools.dynamic]
 version = {attr = "dns_client.__version__"}
+description = {attr = "dns_client.__doc__"}
 
 [project.scripts]
