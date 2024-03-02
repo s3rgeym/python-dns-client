@@ -34,7 +34,7 @@ Out[3]: [Record(name='ya.ru', qtype=<RecordType.AAAA: 28>, qclass=<RecordClass.I
 In [4]: c.query('ya.ru', RecordType.MX)
 Out[4]: [Record(name='ya.ru', qtype=<RecordType.MX: 15>, qclass=<RecordClass.IN: 1>, ttl=2242, value=(10, 'mx.yandex.ru'))]
 
-In [5]: c.get_response_query('ya.ru')
+In [5]: c.get_query_response('ya.ru')
 Out[5]: Packet(header=Header(id=47527, response=True, opcode=<OpCode.QUERY: 0>, authoritative=False, truncated=False, recursion_desired=True, recursion_available=True, reserved=False, authentic_data=False, check_disabled=False, rcode=<ResponseCode.NOERROR: 0>, num_questions=1, num_records=2, num_authorities=0, num_additionals=0), questions=[Question(name='ya.ru', qtype=<RecordType.A: 1>, qclass=<RecordClass.IN: 1>)], records=[Record(name='ya.ru', qtype=<RecordType.A: 1>, qclass=<RecordClass.IN: 1>, ttl=266, value='77.88.55.242'), Record(name='ya.ru', qtype=<RecordType.A: 1>, qclass=<RecordClass.IN: 1>, ttl=266, value='5.255.255.242')])
 
 In [6]: c.get_all_records('ya.ru')
@@ -60,13 +60,6 @@ Out[6]:
 You can use `dns-client` with `requests`:
 
 ```python
-# to see logs
-import logging
-from dns_client.log import logger
-
-logging.basicConfig()
-logger.setLevel(logging.DEBUG)
-
 from dns_client.adapters.requests import DNSClientSession
 
 s = DNSClientSession('1.1.1.1')
@@ -76,6 +69,20 @@ s.get('https://google.com')
 CLI Usage:
 
 ```python
-$ python -m dns_client ya.ru -t aaaa
-2a02:6b8::2:242
+$ python -m dns_client ya.ru -t ns -H 127.0.0.1
+1... .... .... .... : Response = True
+.000 0... .... .... : Opcode = <OpCode.QUERY: 0>
+.... .0.. .... .... : Authoritative = False
+.... ..0. .... .... : Truncated = False
+.... ...1 .... .... : Recursion Desired = True
+.... .... 1... .... : Recursion Available = True
+.... .... .0.. .... : Reserved = False
+.... .... ..0. .... : Authentic Data = False
+.... .... ...0 .... : Check Disabled = False
+.... .... .... 0000 : Rcode = <ResponseCode.NOERROR: 0>
+
+Number of Records: 2
+
+ns1.yandex.ru
+ns2.yandex.ru
 ```

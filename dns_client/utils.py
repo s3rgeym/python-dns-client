@@ -121,30 +121,27 @@ class BitsWriter:
         self.offset += n
 
 
-def split_hex(b: bytes, n: int = 2) -> list[str]:
-    return (h := b.hex()) and [h[i : i + n] for i in range(0, len(h), n)]
+def split_chunks(seq: typing.Sequence, n: int) -> list[str]:
+    return [seq[i : i + n] for i in range(0, len(seq), n)]
+
+
+def split_hex(b: bytes) -> list[str]:
+    return split_chunks(b.hex(), 2)
 
 
 def isiterable(v: typing.Any) -> bool:
     return isinstance(v, typing.Sequence) and not isinstance(v, (str, bytes))
 
 
-# https://stackoverflow.com/a/73026174/2240578
-def ttl_lru_cache(seconds_to_live: int, maxsize: int = 128):
-    """
-    Time aware lru caching
-    """
-
-    def wrapper(func):
-
-        @functools.lru_cache(maxsize)
+# modified from https://stackoverflow.com/a/73026174/2240578
+def ttl_lru_cache(ttl: float, **cache_kwargs: typing.Any):
+    def wrapper(f):
+        @functools.lru_cache(**cache_kwargs)
         def inner(__ttl, *args, **kwargs):
-            # Note that __ttl is not passed down to func,
-            # as it's only used to trigger cache miss after some time
-            return func(*args, **kwargs)
+            return f(*args, **kwargs)
 
         return lambda *args, **kwargs: inner(
-            time.time() // seconds_to_live, *args, **kwargs
+            time.monotonic() // ttl, *args, **kwargs
         )
 
     return wrapper

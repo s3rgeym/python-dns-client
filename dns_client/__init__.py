@@ -1,7 +1,7 @@
 """Python client library for sending DNS queries."""
 
 __author__ = "Sergey M"
-__version__ = "0.1.7"
+__version__ = "0.1.8"
 
 from .client import DNSClient
 from .errors import ConnectionError, DNSError, SocketError
