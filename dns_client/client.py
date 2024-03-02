@@ -126,9 +126,9 @@ class DNSClient:
             try:
                 n = self.sock.send(data)
                 logger.debug("bytes sent: %d", n)
-                return self.read_packet()
             except SOCKET_ERRORS as ex:
                 raise SocketError("socket write error") from ex
+            return self.read_packet()
 
     def get_query_response(
         self,
