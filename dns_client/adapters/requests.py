@@ -39,7 +39,9 @@ class DNSClientAdapter(HTTPAdapter):
         }
         request.url = request.url.replace(
             u.scheme + "://" + u.hostname,
-            u.scheme + "://" + (resolve_ip, f"[{resolved_ip}]")[":" in resolve_ip],
+            u.scheme
+            + "://"
+            + (resolved_ip, f"[{resolved_ip}]")[":" in resolved_ip],
         )
         logger.debug("request url: %s", request.url)
         request.headers["Host"] = u.hostname
@@ -47,7 +49,7 @@ class DNSClientAdapter(HTTPAdapter):
 
 
 class DNSClientSession(requests.Session):
-    def __init__(self, host: str, port: int | None = Non0) -> None:
+    def __init__(self, host: str, port: int | None = None) -> None:
         super().__init__()
         # fix: AttributeError: 'DNSClientSession' object has no attribute 'adapters'
         a = DNSClientAdapter(host, port)
