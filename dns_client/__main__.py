@@ -40,13 +40,16 @@ def print_response(response: Packet) -> None:
         )
         row_data = " ".join(split_chunks(row_data, 4))
         label = key.title().replace("_", " ")
-        value = repr(getattr(header, key))
-        print_err(row_data, "=", label, f"({value})")
+        value = getattr(header, key)
+        print_err(row_data, "=", label, f"({value!r})")
         offset += length
 
     print_err()
 
-    print_err("Number of Records:", len(response.records))
+    print_err("Number of Records     :", header.num_records)
+    print_err("Number of Questions   :", header.num_questions)
+    print_err("Number of Authorities :", header.num_authorities)
+    print_err("Number of Additionals :", header.num_additionals)
 
     print_err()
 
