@@ -48,20 +48,21 @@ def print_response(response: Packet) -> None:
 
     print_err()
 
-    print_err("Number of Records     :", header.num_records)
-    print_err("Number of Questions   :", header.num_questions)
-    print_err("Number of Authorities :", header.num_authorities)
-    print_err("Number of Additionals :", header.num_additionals)
+    print_err("Number of Records\t:", header.num_records)
+    print_err("Number of Questions\t:", header.num_questions)
+    print_err("Number of Authorities\t:", header.num_authorities)
+    print_err("Number of Additionals\t:", header.num_additionals)
 
     print_err()
 
 
 class NameSpace(argparse.Namespace):
-    host: str
-    port: int
-    type: str
     debug: bool
+    host: str
     name: str
+    port: int
+    print_response: bool
+    type: str
 
 
 if __name__ == "__main__":
@@ -82,6 +83,15 @@ if __name__ == "__main__":
         "-d",
         "--debug",
         default=False,
+        help="show debug info",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "-pr",
+        "--print-response",
+        "--print",
+        default=False,
+        help="print response info",
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument("name")
@@ -107,8 +117,9 @@ if __name__ == "__main__":
                 qtype=qtypes,
             )
 
-            with disable_logger():
-                print_response(response)
+            if args.print_response:
+                with disable_logger():
+                    print_response(response)
 
             for record in response.records:
                 print(record.value)

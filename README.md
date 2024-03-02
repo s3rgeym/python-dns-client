@@ -68,8 +68,8 @@ s.get('https://google.com')
 
 CLI Usage:
 
-```python
-$ python -m dns_client ya.ru -t ns -H 127.0.0.1
+```bash
+$ python -m dns_client ya.ru -t ns -H 127.0.0.1 --print
 Response Flags = 0x8180
 
 1... .... .... .... = Response (True)
@@ -90,4 +90,16 @@ Number of Additionals : 1
 
 ns2.yandex.ru
 ns1.yandex.ru
+```
+
+| Arg | Desc |
+| --- | --- |
+| `-t` | record type |
+| `-H` | dns address |
+| `--print` | print response |
+
+See all arguments:
+
+```bash
+python -m dns_client -h
 ```
