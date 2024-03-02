@@ -62,7 +62,7 @@ class RecordClass(IntEnum):
 T = typing.TypeVar("T")
 
 
-class DataHandler:
+class PacketHandler:
     def parse(self, fp: typing.BinaryIO) -> None:
         raise NotImplementedError
 
@@ -99,7 +99,7 @@ class ResponseCode(IntEnum):
 
 
 @dataclasses.dataclass
-class Header(DataHandler):
+class Header(PacketHandler):
     """Packet Header"""
 
     # id: int = dataclasses.field(
@@ -228,7 +228,7 @@ def read_name(fp: typing.BinaryIO) -> str:
 
 
 @dataclasses.dataclass
-class Question(DataHandler):
+class Question(PacketHandler):
     """Query Question"""
 
     name: str | None = None
@@ -257,7 +257,7 @@ class Question(DataHandler):
 
 
 @dataclasses.dataclass
-class Record(DataHandler):
+class Record(PacketHandler):
     """Response Record"""
 
     name: str | None = None
@@ -304,7 +304,7 @@ class Record(DataHandler):
 
 
 @dataclasses.dataclass
-class Packet(DataHandler):
+class Packet(PacketHandler):
     """Query or Response Packet"""
 
     header: Header | None = None
