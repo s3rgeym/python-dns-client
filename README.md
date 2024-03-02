@@ -71,6 +71,7 @@ CLI Usage:
 ```python
 $ python -m dns_client ya.ru -t ns -H 127.0.0.1
 Response Flags = 0x8180
+
 1... .... .... .... = Response (True)
 .000 0... .... .... = Opcode (<OpCode.QUERY: 0>)
 .... .0.. .... .... = Authoritative (False)

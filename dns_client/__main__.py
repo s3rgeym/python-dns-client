@@ -15,6 +15,8 @@ def print_response(response: Packet) -> None:
     header = response.header
 
     print_err("Response Flags =", hex(header.flags))
+    print_err()
+
     bits_len = 16
     bin_str = f"{header.flags:0{bits_len}b}"
 
