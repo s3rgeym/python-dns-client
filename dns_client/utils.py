@@ -127,3 +127,24 @@ def split_hex(b: bytes, n: int = 2) -> list[str]:
 
 def isiterable(v: typing.Any) -> bool:
     return isinstance(v, typing.Sequence) and not isinstance(v, (str, bytes))
+
+
+# https://stackoverflow.com/a/73026174/2240578
+def ttl_lru_cache(seconds_to_live: int, maxsize: int = 128):
+    """
+    Time aware lru caching
+    """
+
+    def wrapper(func):
+
+        @functools.lru_cache(maxsize)
+        def inner(__ttl, *args, **kwargs):
+            # Note that __ttl is not passed down to func,
+            # as it's only used to trigger cache miss after some time
+            return func(*args, **kwargs)
+
+        return lambda *args, **kwargs: inner(
+            time.time() // seconds_to_live, *args, **kwargs
+        )
+
+    return wrapper
