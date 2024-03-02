@@ -17,10 +17,9 @@ def print_response(response: Packet) -> None:
     print_err("Response Flags =", hex(header.flags))
     print_err()
 
-    bits_len = 16
-    bin_str = f"{header.flags:0{bits_len}b}"
+    bits_str = f"{header.flags:016b}"
 
-    table_data = {
+    attrs_len = {
         "response": 1,
         "opcode": 4,
         "authoritative": 1,
@@ -34,15 +33,15 @@ def print_response(response: Packet) -> None:
     }
 
     offset = 0
-    for key, length in table_data.items():
+    for attr, length in attrs_len.items():
         row_data = (
-            bin_str[offset : offset + length]
+            bits_str[offset : offset + length]
             .rjust(offset + length, ".")
-            .ljust(bits_len, ".")
+            .ljust(len(bits_str), ".")
         )
         row_data = " ".join(split_chunks(row_data, 4))
-        label = key.title().replace("_", " ")
-        value = getattr(header, key)
+        label = attr.title().replace("_", " ")
+        value = getattr(header, attr)
         print_err(row_data, "=", label, f"({value!r})")
         offset += length
 
