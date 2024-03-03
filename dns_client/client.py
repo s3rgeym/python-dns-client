@@ -66,25 +66,26 @@ class DNSClient:
         except (socket.error, ValueError):
             return socket.AF_INET
 
+    def _get_socket(self) -> socket.socket:
+        if self.over_tls:     
+            # DNS Over TLS использует TCP
+            sock = socket.socket(
+                self.address_family, socket.SOCK_STREAM
+            )
+            context = ssl.create_default_context()
+            return context.wrap_socket(
+                sock,
+                server_hostname=self.host,
+            )
+        return socket.socket(
+            self.address_family,
+            socket.SOCK_DGRAM,
+        )
+
     def connect(self) -> None:
-        try:
-            logger.debug("try to connect %s#%d", self.host, self.port)
-            if self.over_tls:
-                # DNS Over TLS использует TCP
-                sock = socket.socket(
-                    self.address_family, socket.SOCK_STREAM
-                )
-                # context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-                context = ssl.create_default_context()
-                self.sock = context.wrap_socket(
-                    sock,
-                    server_hostname=self.host,
-                )
-            else:
-                # socket.SOCK_DGRAM = UDP
-                self.sock = socket.socket(
-                    self.address_family, socket.SOCK_DGRAM
-                )
+        logger.debug("try to connect %s#%d", self.host, self.port)
+        try:       
+            self.sock = self._get_socket()
             self.sock.settimeout(self.timeout)
             self.sock.connect(self.address)
         except CONNECTION_ERRORS as ex:
