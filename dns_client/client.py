@@ -2,6 +2,7 @@ import dataclasses
 import functools
 import io
 import socket
+import ssl
 import threading
 import time
 import types
@@ -11,8 +12,6 @@ from .errors import ConnectionError, DNSError, SocketError
 from .log import logger
 from .protocol import Packet, Record, RecordType
 from .utils import split_hex
-
-DNS_PORT = 53
 
 
 def timeit(fn: typing.Callable) -> typing.Callable:
@@ -37,16 +36,23 @@ CONNECTION_ERRORS = (
 SOCKET_ERRORS = (socket.error, socket.timeout)
 
 
+DNS_PORT = 53
+DNS_OVER_TLS_PORT = 853
+
+
 @dataclasses.dataclass
 class DNSClient:
     host: str
     port: int | None = None
+    _: dataclasses.KW_ONLY
+    over_tls: bool = False
     timeout: float | None = None
     sock: socket.socket | None = None
 
     def __post_init__(self) -> None:
-        self.port = self.port or DNS_PORT
-        self._lock = threading.RLock()
+        if self.port is None:
+            self.port = DNS_OVER_TLS_PORT if self.over_tls else DNS_PORT
+        self.lock = threading.RLock()
 
     @property
     def address(self) -> tuple[str, int]:
@@ -62,14 +68,23 @@ class DNSClient:
 
     def connect(self) -> None:
         try:
-            # socket.SOCK_DGRAM = UDP
-            self.sock = socket.socket(self.address_family, socket.SOCK_DGRAM)
-            # TODO: к сожалению модуль ssl не поддерживает udp-сокеты
-            # if self.ssl:
-            #     context = ssl.create_default_context()
-            #     self.sock = context.wrap_socket(
-            #         self.sock, server_hostname=self.host
-            #     )
+            logger.debug("try to connect %s#%d", self.host, self.port)
+            if self.over_tls:
+                # DNS Over TLS использует TCP
+                self.sock = socket.socket(
+                    self.address_family, socket.SOCK_STREAM
+                )
+                # context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+                context = ssl.create_default_context()
+                self.sock = context.wrap_socket(
+                    self.sock,
+                    server_hostname=self.host,
+                )
+            else:
+                # socket.SOCK_DGRAM = UDP
+                self.sock = socket.socket(
+                    self.address_family, socket.SOCK_DGRAM
+                )
             self.sock.connect(self.address)
             self.sock.settimeout(self.timeout)
         except CONNECTION_ERRORS as ex:
@@ -99,35 +114,57 @@ class DNSClient:
     ) -> None:
         self.disconnect()
 
-    def read_packet(self) -> Packet:
-        with self._lock:
-            try:
-                b = bytearray(4096)
-                n = self.sock.recv_into(b, len(b))
-                logger.debug("bytes recieved: %d", n)
-                return Packet.read_from(io.BytesIO(b))
-            except SOCKET_ERRORS as ex:
-                raise SocketError("socket read error") from ex
+    @property
+    def is_udp(self) -> bool:
+        return self.connected and self.sock.type == socket.SOCK_DGRAM
 
-    def send_packet(self, packet: Packet) -> Packet:
+    @property
+    def is_tcp(self) -> bool:
+        return self.connected and self.sock.type == socket.SOCK_STREAM
+
+    def send_data(self, data: bytes) -> int:
         # Подключаемся, если не были подключены
         if not self.connected:
             self.connect()
+        if self.is_tcp:
+            # 2 байта в начале TCP-пакета — длина
+            data = int.to_bytes(len(data), 2) + data
+        with self.lock:
+            try:
+                return self.sock.send(data)
+            except SOCKET_ERRORS as ex:
+                raise SocketError("socket write error") from ex
 
+    def read_data(self) -> bytearray:
+        with self.lock:
+            try:
+                buf = (
+                    bytearray(int.from_bytes(self.sock.recv(2)))
+                    if self.is_tcp
+                    else bytearray(1024)
+                )
+                logger.debug("read buffer size: %d", len(buf))
+                n = self.sock.recv_into(buf, len(buf))
+                logger.debug("bytes recieved: %d", n)
+                return buf
+            except SOCKET_ERRORS as ex:
+                raise SocketError("socket read error") from ex
+
+    def read_packet(self) -> Packet:
+        with self.lock:
+            buf = self.read_data()
+            return Packet.read_from(io.BytesIO(buf))
+
+    def send_packet(self, packet: Packet) -> Packet:
         data = packet.to_bytes()
-
-        assert len(data) > 12
 
         # получение TXT у ya.ru
         # 1d cd | 01 00 | 00 01 00 00 00 00 00 00 | 02 79 61 02 72 75 00 | 00 | 10 | 00 | 01
-        logger.debug("raw query data: %s", " ".join(split_hex(data)))
+        logger.debug("query raw data: %s", " ".join(split_hex(data)))
 
-        with self._lock:
-            try:
-                n = self.sock.send(data)
-                logger.debug("bytes sent: %d", n)
-            except SOCKET_ERRORS as ex:
-                raise SocketError("socket write error") from ex
+        with self.lock:
+            n = self.send_data(data)
+            logger.debug("bytes sent: %d", n)
             return self.read_packet()
 
     def get_query_response(

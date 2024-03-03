@@ -59,6 +59,7 @@ class NameSpace(argparse.Namespace):
     debug: bool
     host: str
     name: str
+    over_tls: bool
     port: int
     print_response: bool
     type: str
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Python DNS Client")
     parser.add_argument("-H", "--host", default="1.1.1.1", help="dns host")
-    parser.add_argument("-p", "--port", default=53, type=int, help="dns port")
+    parser.add_argument("-p", "--port", type=int, help="dns port")
     parser.add_argument(
         "-t",
         "--type",
@@ -83,7 +84,7 @@ if __name__ == "__main__":
         "--debug",
         default=False,
         help="show debug info",
-        action=argparse.BooleanOptionalAction,
+        action="store_true",
     )
     parser.add_argument(
         "-pr",
@@ -91,7 +92,14 @@ if __name__ == "__main__":
         "--print",
         default=False,
         help="print response info",
-        action=argparse.BooleanOptionalAction,
+        action="store_true",
+    )
+    parser.add_argument(
+        "--over-tls",
+        "--tls",
+        default=False,
+        help="use tcp/tls instead udp",
+        action="store_true",
     )
     parser.add_argument("name")
 
@@ -109,7 +117,7 @@ if __name__ == "__main__":
     logging.basicConfig()
     logger.setLevel([logging.WARNING, logging.DEBUG][args.debug])
 
-    with DNSClient(args.host, args.port) as client:
+    with DNSClient(args.host, args.port, over_tls=args.over_tls) as client:
         try:
             response = client.get_query_response(
                 args.name,
@@ -123,5 +131,5 @@ if __name__ == "__main__":
             for record in response.records:
                 print(record.value)
         except Exception as ex:
-            logger.critical(ex)
+            logger.exception(ex)
             sys.exit(1)
