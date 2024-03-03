@@ -115,18 +115,18 @@ class DNSClient:
         self.disconnect()
 
     @property
-    def is_udp(self) -> bool:
+    def is_udp_connection(self) -> bool:
         return self.connected and self.sock.type == socket.SOCK_DGRAM
 
     @property
-    def is_tcp(self) -> bool:
+    def is_tcp_connection(self) -> bool:
         return self.connected and self.sock.type == socket.SOCK_STREAM
 
     def send_data(self, data: bytes) -> int:
         # Подключаемся, если не были подключены
         if not self.connected:
             self.connect()
-        if self.is_tcp:
+        if self.is_tcp_connection:
             # 2 байта в начале TCP-пакета — длина
             data = int.to_bytes(len(data), 2) + data
         with self.lock:
@@ -140,7 +140,7 @@ class DNSClient:
             try:
                 buf = (
                     bytearray(int.from_bytes(self.sock.recv(2)))
-                    if self.is_tcp
+                    if self.is_tcp_connection
                     else bytearray(1024)
                 )
                 logger.debug("read buffer size: %d", len(buf))
