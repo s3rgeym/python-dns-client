@@ -84,14 +84,14 @@ class DNSClient:
 
     def connect(self) -> None:
         logger.debug("try to connect %s#%d", self.host, self.port)
-        try:       
+        try:    
             self.sock = self._get_socket()
             self.sock.settimeout(self.timeout)
             self.sock.connect(self.address)
+            logger.info("connection established: %s#%d", self.host, self.port)
         except CONNECTION_ERRORS as ex:
             self.sock = None
             raise ConnectionError() from ex
-        logger.info("connection established: %s#%d", self.host, self.port)
 
     @property
     def connected(self) -> bool:
