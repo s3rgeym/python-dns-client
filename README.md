@@ -6,10 +6,12 @@
 
 Python client library for sending DNS queries.
 
-* null-dependency
-* threadsafe
-* type hints
+Featurtes:
+
+* supports DNS over TLS (DOT)
 * contains adapter for requests
+* threadsafe
+* null-dependency
 
 Install:
 
@@ -26,7 +28,7 @@ Examples:
 ```python
 In [1]: from dns_client import DNSClient, RecordType
 
-In [2]: c = DNSClient('1.1.1.1')
+In [2]: c = DNSClient('1.1.1.1', over_tls=True)
 
 In [3]: c.query('ya.ru', RecordType.AAAA)
 Out[3]: [Record(name='ya.ru', qtype=<RecordType.AAAA: 28>, qclass=<RecordClass.IN: 1>, ttl=76, value='2a02:6b8::2:242')]
@@ -63,13 +65,14 @@ You can use `dns-client` with `requests`:
 from dns_client.adapters.requests import DNSClientSession
 
 s = DNSClientSession('1.1.1.1')
-s.get('https://google.com')
+r = s.get('https://google.com')
+print(r.headers)
 ```
 
 CLI Usage:
 
 ```bash
-$ python -m dns_client ya.ru -t ns -H 127.0.0.1 --print
+$ python -m dns_client ya.ru -t ns -H 8.8.8.8 --tls -pr
 Response Flags = 0x8180
 
 1... .... .... .... = Response (True)
@@ -83,20 +86,21 @@ Response Flags = 0x8180
 .... .... ...0 .... = Check Disabled (False)
 .... .... .... 0000 = Rcode (<ResponseCode.NOERROR: 0>)
 
-Number of Records     : 2
-Number of Questions   : 1
-Number of Authorities : 0
-Number of Additionals : 1
+Number of Records       : 2
+Number of Questions     : 1
+Number of Authorities   : 0
+Number of Additionals   : 0
 
-ns2.yandex.ru
 ns1.yandex.ru
+ns2.yandex.ru
 ```
 
 | Arg | Desc |
 | --- | --- |
 | `-t` | record type |
 | `-H` | dns address |
-| `--print` | print response |
+| `--tls` | dns over tls aka d.o.t. |
+| `-pr` | print response |
 
 See all arguments:
 

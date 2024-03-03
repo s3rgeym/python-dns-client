@@ -1,3 +1,4 @@
+import typing
 from typing import Mapping
 from urllib.parse import urlparse
 
@@ -13,8 +14,8 @@ DNS_CACHE_TTL = 300
 
 # https://stackoverflow.com/a/57477670
 class DNSClientAdapter(HTTPAdapter):
-    def __init__(self, host: str, port: int | None) -> None:
-        self.dns_client = DNSClient(host, port)
+    def __init__(self, dns_client: DNSClient) -> None:
+        self.dns_client = dns_client
         super().__init__()
 
     @ttl_lru_cache(DNS_CACHE_TTL, maxsize=1024)
@@ -49,9 +50,15 @@ class DNSClientAdapter(HTTPAdapter):
 
 
 class DNSClientSession(requests.Session):
-    def __init__(self, host: str, port: int | None = None) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int | None = None,
+        **dns_client_kwargs: typing.Any,
+    ) -> None:
         super().__init__()
         # fix: AttributeError: 'DNSClientSession' object has no attribute 'adapters'
-        a = DNSClientAdapter(host, port)
+        c = DNSClient(host, port, **dns_client_kwargs)
+        a = DNSClientAdapter(c)
         self.mount("http://", a)
         self.mount("https://", a)
