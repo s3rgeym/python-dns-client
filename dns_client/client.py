@@ -71,13 +71,13 @@ class DNSClient:
             logger.debug("try to connect %s#%d", self.host, self.port)
             if self.over_tls:
                 # DNS Over TLS использует TCP
-                self.sock = socket.socket(
+                sock = socket.socket(
                     self.address_family, socket.SOCK_STREAM
                 )
                 # context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
                 context = ssl.create_default_context()
                 self.sock = context.wrap_socket(
-                    self.sock,
+                    sock,
                     server_hostname=self.host,
                 )
             else:
