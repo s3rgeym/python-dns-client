@@ -85,8 +85,8 @@ class DNSClient:
                 self.sock = socket.socket(
                     self.address_family, socket.SOCK_DGRAM
                 )
-            self.sock.connect(self.address)
             self.sock.settimeout(self.timeout)
+            self.sock.connect(self.address)
         except CONNECTION_ERRORS as ex:
             self.sock = None
             raise ConnectionError() from ex
