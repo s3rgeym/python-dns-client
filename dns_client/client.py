@@ -39,7 +39,7 @@ SOCKET_ERRORS = (socket.error, socket.timeout)
 DNS_PORT = 53
 DNS_OVER_TLS_PORT = 853
 
-DEFAULT_BUFFER_SIZE = 1024
+DEFAULT_BUFFER_SIZE = 4096
 
 
 @dataclasses.dataclass
