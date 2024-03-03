@@ -98,10 +98,11 @@ class DNSClient:
         return self.sock is not None
 
     def disconnect(self) -> None:
-        if self.connected:
-            self.sock.close()
-            self.sock = None
-            logger.info("disconnected: %s#%d", self.host, self.port)
+        if not self.connected:
+            return
+        self.sock.close()
+        self.sock = None
+        logger.info("disconnected: %s#%d", self.host, self.port)
 
     def __enter__(self) -> typing.Self:
         self.connect()
