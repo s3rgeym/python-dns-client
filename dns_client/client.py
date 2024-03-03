@@ -39,6 +39,8 @@ SOCKET_ERRORS = (socket.error, socket.timeout)
 DNS_PORT = 53
 DNS_OVER_TLS_PORT = 853
 
+DEFAULT_BUFFER_SIZE = 1024
+
 
 @dataclasses.dataclass
 class DNSClient:
@@ -67,11 +69,9 @@ class DNSClient:
             return socket.AF_INET
 
     def _get_socket(self) -> socket.socket:
-        if self.over_tls:     
+        if self.over_tls:
             # DNS Over TLS использует TCP
-            sock = socket.socket(
-                self.address_family, socket.SOCK_STREAM
-            )
+            sock = socket.socket(self.address_family, socket.SOCK_STREAM)
             context = ssl.create_default_context()
             return context.wrap_socket(
                 sock,
@@ -84,7 +84,7 @@ class DNSClient:
 
     def connect(self) -> None:
         logger.debug("try to connect %s#%d", self.host, self.port)
-        try:    
+        try:
             self.sock = self._get_socket()
             self.sock.settimeout(self.timeout)
             self.sock.connect(self.address)
@@ -140,11 +140,12 @@ class DNSClient:
     def read_data(self) -> bytearray:
         with self.lock:
             try:
-                buf = (
-                    bytearray(int.from_bytes(self.sock.recv(2)))
+                size = (
+                    int.from_bytes(self.sock.recv(2))
                     if self.is_tcp_connection
-                    else bytearray(1024)
+                    else DEFAULT_BUFFER_SIZE
                 )
+                buf = bytearray(size)
                 logger.debug("read buffer size: %d", len(buf))
                 n = self.sock.recv_into(buf, len(buf))
                 logger.debug("bytes recieved: %d", n)
