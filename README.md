@@ -64,7 +64,7 @@ You can use `dns-client` with `requests`:
 ```python
 from dns_client.adapters.requests import DNSClientSession
 
-s = DNSClientSession('1.1.1.1')
+s = DNSClientSession('8.8.8.8')
 r = s.get('https://google.com')
 print(r.headers)
 ```

@@ -8,14 +8,12 @@ import time
 import types
 import typing
 
-from .errors import ConnectionError, DNSError, SocketError
+from .errors import ClientError, ConnectionError, DNSError
 from .log import logger
 from .protocol import Packet, Record, RecordType
 
 DNS_PORT = 53
 DNS_OVER_TLS_PORT = 853
-
-MAX_PACKET_SIZE = (1 << 16) - 1
 
 CONNECTION_ERRORS = (
     socket.herror,  # gethostaddr error
@@ -44,9 +42,10 @@ class DNSClient:
     host: str
     port: int | None = None
     _: dataclasses.KW_ONLY
+    max_attempts: int = 3
     over_tls: bool = False
-    timeout: float | None = None
     sock: socket.socket | None = None
+    timeout: float | None = None
 
     def __post_init__(self) -> None:
         if self.port is None:
@@ -125,14 +124,14 @@ class DNSClient:
             try:
                 return self.sock.send(data)
             except SOCKET_ERRORS as ex:
-                raise SocketError("socket write error") from ex
+                raise ClientError("socket write error") from ex
 
     def read_socket(self, buf: bytes | bytearray | memoryview) -> int:
         with self.lock:
             try:
                 return self.sock.recv_into(buf)
             except SOCKET_ERRORS as ex:
-                raise SocketError("socket read error")
+                raise ClientError("socket read error")
 
     def send_packet(self, packet: Packet) -> Packet:
         data = packet.to_bytes()
@@ -147,21 +146,24 @@ class DNSClient:
             data = int.to_bytes(len(data), 2) + data
 
         with self.lock:
-            while True:
+            for attempt in range(1, self.max_attempts + 1):
                 n = self.write_socket(data)
                 logger.debug("bytes sent: %d", n)
-                buf = bytearray(MAX_PACKET_SIZE)
+                buf = bytearray(4096)
                 n = self.read_socket(buf)
                 logger.debug("bytes recieved: %d", n)
 
                 if n:
-                    # ответы по TCP тоже содержат 2 байта с размероав в начале
+                    # ответы по TCP тоже содержат 2 байта с размером в начале
                     buf = io.BytesIO(buf[2:] if self.over_tls else buf)
                     return Packet.read_from(buf)
 
-                # если сервер разрывает соединение, то приходит пустой ответ
-                logger.info("connection closed... reconnect")
+                # иногда если сервер разрывает соединение, то приходит пустой
+                # ответ, тк соединение все еще считается установленным
+                logger.info("empty response (%d)", attempt)
                 self.sock = None
+
+        raise ClientError("max attempts exceeded!")
 
     def get_query_response(
         self,
