@@ -125,8 +125,8 @@ def split_chunks(seq: typing.Sequence, n: int) -> list[str]:
     return [seq[i : i + n] for i in range(0, len(seq), n)]
 
 
-def split_hex(b: bytes) -> list[str]:
-    return split_chunks(b.hex(), 2)
+# def split_hex(b: bytes) -> list[str]:
+#     return split_chunks(b.hex(), 2)
 
 
 def isiterable(v: typing.Any) -> bool:
