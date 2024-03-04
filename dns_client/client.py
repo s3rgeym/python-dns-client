@@ -11,7 +11,19 @@ import typing
 from .errors import ConnectionError, DNSError, SocketError
 from .log import logger
 from .protocol import Packet, Record, RecordType
-from .utils import split_hex
+
+DNS_PORT = 53
+DNS_OVER_TLS_PORT = 853
+
+MAX_PACKET_SIZE = (1 << 16) - 1
+
+CONNECTION_ERRORS = (
+    socket.herror,  # gethostaddr error
+    socket.gaierror,  # getaddrinfo error
+)
+
+
+SOCKET_ERRORS = (socket.error, socket.timeout)
 
 
 def timeit(fn: typing.Callable) -> typing.Callable:
@@ -25,21 +37,6 @@ def timeit(fn: typing.Callable) -> typing.Callable:
             logger.debug("function %s tooks %.3fs", fn.__name__, dt)
 
     return timed
-
-
-CONNECTION_ERRORS = (
-    socket.herror,  # gethostaddr error
-    socket.gaierror,  # getaddrinfo error
-)
-
-
-SOCKET_ERRORS = (socket.error, socket.timeout)
-
-
-DNS_PORT = 53
-DNS_OVER_TLS_PORT = 853
-
-DEFAULT_BUFFER_SIZE = 4096
 
 
 @dataclasses.dataclass
@@ -68,24 +65,29 @@ class DNSClient:
         except (socket.error, ValueError):
             return socket.AF_INET
 
-    def _get_socket(self) -> socket.socket:
-        if self.over_tls:
-            # DNS Over TLS использует TCP
-            sock = socket.socket(self.address_family, socket.SOCK_STREAM)
-            context = ssl.create_default_context()
-            return context.wrap_socket(
-                sock,
-                server_hostname=self.host,
-            )
+    def get_udp_socket(self) -> socket.socket:
         return socket.socket(
             self.address_family,
             socket.SOCK_DGRAM,
         )
 
+    def get_tcp_socket(self) -> socket.socket:
+        sock = socket.socket(self.address_family, socket.SOCK_STREAM)
+        # fast open как рекомендует спецификация
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_FASTOPEN, 5)
+        # просим сервер не разрывать соединение (это его ни к чему не обязывает)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        context = ssl.create_default_context()
+        return context.wrap_socket(sock, server_hostname=self.host)
+
     def connect(self) -> None:
-        logger.debug("try to connect %s#%d", self.host, self.port)
         try:
-            self.sock = self._get_socket()
+            logger.debug("connect to %s#%d", self.host, self.port)
+            self.sock = (
+                self.get_tcp_socket()
+                if self.over_tls
+                else self.get_udp_socket()
+            )
             self.sock.settimeout(self.timeout)
             self.sock.connect(self.address)
             logger.info("connection established: %s#%d", self.host, self.port)
@@ -95,7 +97,7 @@ class DNSClient:
 
     @property
     def connected(self) -> bool:
-        return self.sock is not None
+        return not (self.sock is None or self.sock._closed)
 
     def disconnect(self) -> None:
         if not self.connected:
@@ -116,59 +118,50 @@ class DNSClient:
     ) -> None:
         self.disconnect()
 
-    @property
-    def is_udp_connection(self) -> bool:
-        return self.connected and self.sock.type == socket.SOCK_DGRAM
-
-    @property
-    def is_tcp_connection(self) -> bool:
-        return self.connected and self.sock.type == socket.SOCK_STREAM
-
-    def send_data(self, data: bytes) -> int:
-        # Подключаемся, если не были подключены
+    def write_socket(self, data: bytes) -> int:
         if not self.connected:
             self.connect()
-        if self.is_tcp_connection:
-            # 2 байта в начале TCP-пакета — длина
-            data = int.to_bytes(len(data), 2) + data
         with self.lock:
             try:
                 return self.sock.send(data)
             except SOCKET_ERRORS as ex:
                 raise SocketError("socket write error") from ex
 
-    def read_data(self) -> bytearray:
+    def read_socket(self, buf: bytes | bytearray | memoryview) -> int:
         with self.lock:
             try:
-                size = (
-                    int.from_bytes(self.sock.recv(2))
-                    if self.is_tcp_connection
-                    else DEFAULT_BUFFER_SIZE
-                )
-                buf = bytearray(size)
-                logger.debug("read buffer size: %d", len(buf))
-                n = self.sock.recv_into(buf, len(buf))
-                logger.debug("bytes recieved: %d", n)
-                return buf
+                return self.sock.recv_into(buf)
             except SOCKET_ERRORS as ex:
-                raise SocketError("socket read error") from ex
-
-    def read_packet(self) -> Packet:
-        with self.lock:
-            buf = self.read_data()
-            return Packet.read_from(io.BytesIO(buf))
+                raise SocketError("socket read error")
 
     def send_packet(self, packet: Packet) -> Packet:
         data = packet.to_bytes()
 
         # получение TXT у ya.ru
         # 1d cd | 01 00 | 00 01 00 00 00 00 00 00 | 02 79 61 02 72 75 00 | 00 | 10 | 00 | 01
-        logger.debug("query raw data: %s", " ".join(split_hex(data)))
+        logger.debug("query raw data: %s", data.hex(" ", 1))
+
+        if self.over_tls:
+            # https://datatracker.ietf.org/doc/html/rfc1035#section-4.2.2
+            # 2 байта в начале TCP-пакета — длина
+            data = int.to_bytes(len(data), 2) + data
 
         with self.lock:
-            n = self.send_data(data)
-            logger.debug("bytes sent: %d", n)
-            return self.read_packet()
+            while True:
+                n = self.write_socket(data)
+                logger.debug("bytes sent: %d", n)
+                buf = bytearray(MAX_PACKET_SIZE)
+                n = self.read_socket(buf)
+                logger.debug("bytes recieved: %d", n)
+
+                if n:
+                    # ответы по TCP тоже содержат 2 байта с размероав в начале
+                    buf = io.BytesIO(buf[2:] if self.over_tls else buf)
+                    return Packet.read_from(buf)
+
+                # если сервер разрывает соединение, то приходит пустой ответ
+                logger.info("connection closed... reconnect")
+                self.sock = None
 
     def get_query_response(
         self,
