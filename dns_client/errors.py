@@ -9,15 +9,15 @@ class Error(Exception):
         super().__init__(self.message)
 
 
-class ConnectionError(Error):
-    message = "Connection error"
-
-
-class SocketError(Error):
+class ClientError(Error):
     pass
 
 
-class DNSError(Error):
+class ConnectionError(ClientError):
+    message = "Connection error"
+
+
+class DNSError(ClientError):
     def __init__(self, response: Packet) -> None:
         self.response = response
         super().__init__(
