@@ -15,7 +15,6 @@ from .protocol import Packet, Record, RecordType
 DNS_PORT = 53
 DNS_OVER_TLS_PORT = 853
 
-MAX_PACKET_SIZE = (1 << 16) - 1
 
 CONNECTION_ERRORS = (
     socket.herror,  # gethostaddr error
@@ -150,7 +149,7 @@ class DNSClient:
             while True:
                 n = self.write_socket(data)
                 logger.debug("bytes sent: %d", n)
-                buf = bytearray(MAX_PACKET_SIZE)
+                buf = bytearray(4096)
                 n = self.read_socket(buf)
                 logger.debug("bytes recieved: %d", n)
 
